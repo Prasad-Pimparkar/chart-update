@@ -7,8 +7,8 @@ import plotly.io as pio
 pio.renderers.default="browser"
 
 # Stock data
-quote=yf.Ticker('RELIANCE.NS')
-df=quote.history(start=('2020-10-01'), end=('2023-01-29'), interval='1d')
+quote=yf.Ticker('TATAMOTORS.NS')
+df=quote.history(start=('2021-12-01'), end=('2023-01-29'), interval='1d')
 df.to_csv('trial_data.csv')
 df=pd.read_csv('trial_data.csv')
 df.Date=pd.to_datetime(df.Date)
@@ -60,26 +60,36 @@ local_min_indices=[q for q in local_min_indices if q not in drop_indices]
 local_min=low_data[local_min_indices]
 local_min_dates=df['Date'][local_min_indices]
 
-slmax=[]
-slmin=[]
+m=0
+n=0
+upper_channel=[]
+lower_channel=[]
 
-while (slmax==slmin):
-    for m in range(1, len(local_max_indices)):
-        mxslope=np.polyfit(local_max_indices[m], local_max[m], 1)
-        slmax.append(mxslope[m])
-    
-    for n in range(1, len(local_min_indices)):
-        mnslope=np.polyfit(local_min_indices[n], local_min[n], 1)
-        slmin.append(mnslope[n])
+while m<len(local_max_indices)-1 and n<len(local_min_indices)-1:
+    slmax=(local_max_indices[m+1] - local_max_indices[m])/(local_max[m+1]-local_max[m])
+    slmin=(local_min_indices[n+1] - local_min_indices[n])/(local_min[n+1]-local_min[n])
+    if slmax==slmin:
+        upper_channel.append(local_max_indices[m])
+        upper_channel.append(local_max_indices[m+1])
+        lower_channel.append(local_min_indices[n])
+        lower_channel.append(local_min_indices[n+1])
+        break
+    elif slmax<slmin:
+        m = local_max_indices[m+1]
+        n = local_min_indices[n+1]
 
+
+uchannel=high_data[upper_channel]
+uchannel_dates=df['Date'][upper_channel]
+lchannel=low_data[lower_channel]
+lchannel_dates=df['Date'][lower_channel]
 
 # only to check output will be deleted later
 print("Local maxima position:", local_max_indices)
 print("Local maxima:", local_max)
 print("Local minima position:", local_min_indices)
 print("Local minima:", local_min)
-print(slmax)
-print(slmin)
+
 
 fig=go.Figure(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
 fig.update_layout(xaxis_rangeslider_visible=False)
@@ -105,8 +115,8 @@ fig.add_trace(
 
 fig.add_trace(
     go.Scatter(
-        x=local_max_dates,
-        y=local_max,
+        x=uchannel_dates,
+        y=uchannel,
         mode=('lines'),
         name=('u+pper trend line')
         )
@@ -115,8 +125,8 @@ fig.add_trace(
 
 fig.add_trace(
     go.Scatter(
-        x=local_min_dates,
-        y=local_min,
+        x=lchannel_dates,
+        y=lchannel,
         mode=('lines'),
         name=('lower trend line')
         )
