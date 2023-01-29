@@ -73,7 +73,7 @@ local_min_dates=df['Date'][local_min_indices]
 # min_x_values=np.linspace(min(local_min_dates), max(local_min_dates), 2)
 # min_y_values=coef_min[0]*min_x_values+coef_min[1]
 
-# only to check output will be deleted later
+# only to check output, same will be deleted later
 print("Local maxima position:", local_max_indices)
 print("Local maxima:", local_max)
 print("Local minima position:", local_min_indices)
