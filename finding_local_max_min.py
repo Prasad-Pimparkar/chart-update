@@ -7,7 +7,7 @@ import plotly.io as pio
 pio.renderers.default="browser"
 
 # Stock data
-quote=yf.Ticker('TATAMOTORS.NS')
+quote=yf.Ticker('RELIANCE.NS')
 df=quote.history(start=('2021-12-01'), end=('2023-01-29'), interval='1d')
 df.to_csv('trial_data.csv')
 df=pd.read_csv('trial_data.csv')
@@ -16,7 +16,6 @@ df.set_index(df.Date)
 high_data = df['High']
 low_data = df['Low']
 
-threshhold=2
 high_data = np.array(high_data)
 low_data = np.array(low_data)
 
@@ -60,35 +59,35 @@ local_min_indices=[q for q in local_min_indices if q not in drop_indices]
 local_min=low_data[local_min_indices]
 local_min_dates=df['Date'][local_min_indices]
 
-m=0
-n=0
-upper_channel=[]
-lower_channel=[]
+upper_channel = []
+lower_channel = []
 
-while m<len(local_max_indices)-1 and n<len(local_min_indices)-1:
-    slmax=(local_max_indices[m+1] - local_max_indices[m])/(local_max[m+1]-local_max[m])
-    slmin=(local_min_indices[n+1] - local_min_indices[n])/(local_min[n+1]-local_min[n])
-    if slmax==slmin:
-        upper_channel.append(local_max_indices[m])
-        upper_channel.append(local_max_indices[m+1])
-        lower_channel.append(local_min_indices[n])
-        lower_channel.append(local_min_indices[n+1])
-        break
-    elif slmax<slmin:
-        m = local_max_indices[m+1]
-        n = local_min_indices[n+1]
+# Finding slope between all pairs in local_minima
+for m, (x1, y1) in enumerate(zip(local_min_indices, local_min)):
+    for x2, y2 in zip(local_min_indices[m+1:], local_min[m+1:]):
+        slope_min = (y2 - y1) / (x2 - x1)
+        
+        # Finding slope between all pairs in local_maxima
+        for x3, y3 in zip(local_max_indices, local_max):
+            for x4, y4 in zip(local_max_indices, local_max):
+                if x3 != x4:
+                    slope_max = (y4 - y3) / (x4 - x3)
+                    
+                    # Checking if slopes match
+                    if -0.02 < (slope_min - slope_max) < 0.02:
+                        upper_channel.append(x3)
+                        upper_channel.append(x4)
+                        lower_channel.append(x1)
+                        lower_channel.append(x2)
 
+print("upper channel:", upper_channel)
+print("lower channel:", lower_channel)
 
-uchannel=high_data[upper_channel]
-uchannel_dates=df['Date'][upper_channel]
-lchannel=low_data[lower_channel]
-lchannel_dates=df['Date'][lower_channel]
-
-# only to check output will be deleted later
+# # only to check output will be deleted later
 print("Local maxima position:", local_max_indices)
-print("Local maxima:", local_max)
+# print("Local maxima:", local_max)
 print("Local minima position:", local_min_indices)
-print("Local minima:", local_min)
+# print("Local minima:", local_min)
 
 
 fig=go.Figure(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
@@ -115,8 +114,8 @@ fig.add_trace(
 
 fig.add_trace(
     go.Scatter(
-        x=uchannel_dates,
-        y=uchannel,
+        x=local_max_dates[upper_channel],
+        y=high_data[upper_channel],
         mode=('lines'),
         name=('u+pper trend line')
         )
@@ -125,8 +124,8 @@ fig.add_trace(
 
 fig.add_trace(
     go.Scatter(
-        x=lchannel_dates,
-        y=lchannel,
+        x=local_min_dates[lower_channel],
+        y=low_data[lower_channel],
         mode=('lines'),
         name=('lower trend line')
         )
@@ -134,4 +133,3 @@ fig.add_trace(
 
 
 fig.show()
-
