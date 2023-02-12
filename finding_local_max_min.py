@@ -1,16 +1,21 @@
 import numpy as np
 from scipy.signal import argrelextrema, find_peaks
+from scipy.stats import linregress
 import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default="browser"
+from collections import defaultdict
 
 # Stock data
-quote=yf.Ticker('RELIANCE.NS')
-df=quote.history(start=('2021-12-01'), end=('2023-01-29'), interval='1d')
+quote=yf.Ticker('TCS.NS')
+# df=quote.history(start=('2021-12-01'), end=('2023-01-29'), interval='1h')
+df=quote.history(period='max', interval='1d')
 df.to_csv('trial_data.csv')
 df=pd.read_csv('trial_data.csv')
+if 'Datetime' in df.columns:
+    df.rename(columns={'Datetime':'Date'}, inplace=True)
 df.Date=pd.to_datetime(df.Date)
 df.set_index(df.Date)
 high_data = df['High']
@@ -59,34 +64,52 @@ local_min_indices=[q for q in local_min_indices if q not in drop_indices]
 local_min=low_data[local_min_indices]
 local_min_dates=df['Date'][local_min_indices]
 
-upper_channel = []
-lower_channel = []
 
-# Finding slope between all pairs in local_minima
-for m, (x1, y1) in enumerate(zip(local_min_indices, local_min)):
-    for x2, y2 in zip(local_min_indices[m+1:], local_min[m+1:]):
-        slope_min = (y2 - y1) / (x2 - x1)
-        
-        # Finding slope between all pairs in local_maxima
-        for x3, y3 in zip(local_max_indices, local_max):
-            for x4, y4 in zip(local_max_indices, local_max):
-                if x3 != x4:
-                    slope_max = (y4 - y3) / (x4 - x3)
-                    
-                    # Checking if slopes match
-                    if -0.02 < (slope_min - slope_max) < 0.02:
-                        upper_channel.append(x3)
-                        upper_channel.append(x4)
-                        lower_channel.append(x1)
-                        lower_channel.append(x2)
+def calculate_slope(x1, y1, x2, y2):
+    return (y2 - y1) / (x2 - x1)
 
-print("upper channel:", upper_channel)
-print("lower channel:", lower_channel)
+slopes_min = []
+for i, (x1, y1) in enumerate(zip(local_min_indices, local_min)):
+    for x2, y2 in zip(local_min_indices[i+1:], local_min[i+1:]):
+        slope = calculate_slope(x1, y1, x2, y2)
+        slopes_min.append((x1, x2, slope))
+        i=i+1
+
+slopes_max = []
+for i, (x1, y1) in enumerate(zip(local_max_indices, local_max)):
+    for x2, y2 in zip(local_max_indices[i+1:], local_max[i+1:]):
+        slope = calculate_slope(x1, y1, x2, y2)
+        slopes_max.append((x1, x2, slope))
+        i=i+1
+
+matching_slopes = []
+for x1_min, x2_min, slope_min in slopes_min:
+    for x1_max, x2_max, slope_max in slopes_max:
+        if slope_min == slope_max:
+            matching_slopes.append((x1_min, x2_min, x1_max, x2_max))
+
+import plotly.express as px
+import pandas as pd
+
+for x1_min, x2_min, x1_max, x2_max in matching_slopes:
+    y1_min = local_min[local_min_indices.index(x1_min)]
+    y2_min = local_min[local_min_indices.index(x2_min)]
+    y1_max = local_max[local_max_indices.index(x1_max)]
+    y2_max = local_max[local_max_indices.index(x2_max)]
+    df = pd.DataFrame({
+        'x': [x1_min, x2_min, x1_max, x2_max],
+        'y': [y1_min, y2_min, y1_max, y2_max],
+        'type': ['min', 'min', 'max', 'max']
+    })
+    fig = px.line(df, x='x', y='y', color='type')
+    fig.show()
+
+
 
 # # only to check output will be deleted later
-print("Local maxima position:", local_max_indices)
+# print("Local maxima position:", local_max_indices)
 # print("Local maxima:", local_max)
-print("Local minima position:", local_min_indices)
+# print("Local minima position:", local_min_indices)
 # print("Local minima:", local_min)
 
 
@@ -112,24 +135,25 @@ fig.add_trace(
         )
     )
 
-fig.add_trace(
-    go.Scatter(
-        x=local_max_dates[upper_channel],
-        y=high_data[upper_channel],
-        mode=('lines'),
-        name=('u+pper trend line')
-        )
-    )
+
+# fig.add_trace(
+#     go.Scatter(
+#         x=local_max_dates[upper_channel],
+#         y=high_data[upper_channel],
+#         mode=('lines'),
+#         name=('u+pper trend line')
+#         )
+#     )
 
 
-fig.add_trace(
-    go.Scatter(
-        x=local_min_dates[lower_channel],
-        y=low_data[lower_channel],
-        mode=('lines'),
-        name=('lower trend line')
-        )
-    )
+# fig.add_trace(
+#     go.Scatter(
+#         x=local_min_dates[lower_channel],
+#         y=low_data[lower_channel],
+#         mode=('lines'),
+#         name=('lower trend line')
+#         )
+#     )
 
 
 fig.show()
