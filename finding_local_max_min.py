@@ -10,8 +10,8 @@ from collections import defaultdict
 
 # Stock data
 quote=yf.Ticker('TCS.NS')
-# df=quote.history(start=('2021-12-01'), end=('2023-01-29'), interval='1h')
-df=quote.history(period='max', interval='1d')
+df=quote.history(start=('2021-12-01'), end=('2023-02-21'), interval='1h')
+# df=quote.history(period='max', interval='1d')
 df.to_csv('trial_data.csv')
 df=pd.read_csv('trial_data.csv')
 if 'Datetime' in df.columns:
@@ -35,13 +35,13 @@ for i in range(1, len(local_max_indices)):
         if high_data[local_max_indices[i]] < high_data[local_max_indices[i+1]]:
             drop_indices.append(local_max_indices[i])
 local_max_indices=np.array([i for i in local_max_indices if i not in drop_indices])
-for p in range(1, len(local_max_indices)):
-    if high_data[local_max_indices[p]] < high_data[local_max_indices[p-1]]:
-        drop_indices.append(local_max_indices[p])
-    elif p+1 < len(local_max_indices):
-        if high_data[local_max_indices[p]] < high_data[local_max_indices[p+1]]:
-            drop_indices.append(local_max_indices[p])
-local_max_indices=np.array([p for p in local_max_indices if p not in drop_indices])
+# for p in range(1, len(local_max_indices)):
+#     if high_data[local_max_indices[p]] < high_data[local_max_indices[p-1]]:
+#         drop_indices.append(local_max_indices[p])
+#     elif p+1 < len(local_max_indices):
+#         if high_data[local_max_indices[p]] < high_data[local_max_indices[p+1]]:
+#             drop_indices.append(local_max_indices[p])
+# local_max_indices=np.array([p for p in local_max_indices if p not in drop_indices])
 local_max=high_data[local_max_indices]
 local_max_dates=df['Date'][local_max_indices]
 
@@ -54,55 +54,58 @@ for j in range(1, len(local_min_indices)):
         if low_data[local_min_indices[j]] > low_data[local_min_indices[j+1]]:
             drop_indices.append(local_min_indices[j])
 local_min_indices=[j for j in local_min_indices if j not in drop_indices]
-for q in range(1, len(local_min_indices)):
-    if low_data[local_min_indices[q]] > low_data[local_min_indices[q-1]]:
-        drop_indices.append(local_min_indices[q])
-    elif q+1 < len(local_min_indices):
-        if low_data[local_min_indices[q]] > low_data[local_min_indices[q+1]]:
-            drop_indices.append(local_min_indices[q])
-local_min_indices=[q for q in local_min_indices if q not in drop_indices]
+# for q in range(1, len(local_min_indices)):
+#     if low_data[local_min_indices[q]] > low_data[local_min_indices[q-1]]:
+#         drop_indices.append(local_min_indices[q])
+#     elif q+1 < len(local_min_indices):
+#         if low_data[local_min_indices[q]] > low_data[local_min_indices[q+1]]:
+#             drop_indices.append(local_min_indices[q])
+# local_min_indices=[q for q in local_min_indices if q not in drop_indices]
 local_min=low_data[local_min_indices]
 local_min_dates=df['Date'][local_min_indices]
 
 
-def calculate_slope(x1, y1, x2, y2):
-    return (y2 - y1) / (x2 - x1)
-
 slopes_min = []
-for i, (x1, y1) in enumerate(zip(local_min_indices, local_min)):
-    for x2, y2 in zip(local_min_indices[i+1:], local_min[i+1:]):
-        slope = calculate_slope(x1, y1, x2, y2)
-        slopes_min.append((x1, x2, slope))
-        i=i+1
+slope_index_min=[]
+for i in range(len(local_min)):
+    for j in range(i+1,len(local_min)):
+        slope=(local_min[j]-local_min[i])/(local_min_indices[j]-local_min_indices[i])
+        slopes_min.append(slope)
+        slope_index_min.append(local_min_indices[j])
+
+# print(f"min slopes are : {slopes_min}")
 
 slopes_max = []
-for i, (x1, y1) in enumerate(zip(local_max_indices, local_max)):
-    for x2, y2 in zip(local_max_indices[i+1:], local_max[i+1:]):
-        slope = calculate_slope(x1, y1, x2, y2)
-        slopes_max.append((x1, x2, slope))
-        i=i+1
+slope_index_max=[]
+for i in range(len(local_max)):
+    for j in range(i+1,len(local_max)):
+        slope=(local_max[j]-local_max[i])/(local_max_indices[j]-local_max_indices[i])
+        slopes_max.append(slope)
+        slope_index_max.append(local_max_indices[j])
+# print(f"max slopes are : {slopes_max}")
 
-matching_slopes = []
-for x1_min, x2_min, slope_min in slopes_min:
-    for x1_max, x2_max, slope_max in slopes_max:
-        if slope_min == slope_max:
-            matching_slopes.append((x1_min, x2_min, x1_max, x2_max))
+# matching_slopes = []
+matching_indices_min = []
+matching_indices_max = []
 
-import plotly.express as px
-import pandas as pd
+for i, slope_min in enumerate(slopes_min):
+    for j, slope_max in enumerate(slopes_max):
+        if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.000000001):
+            # matching_slopes.append(slope_max)
+            matching_indices_min.append(slope_index_min[i])
+            matching_indices_max.append(slope_index_max[j])
+            break
 
-for x1_min, x2_min, x1_max, x2_max in matching_slopes:
-    y1_min = local_min[local_min_indices.index(x1_min)]
-    y2_min = local_min[local_min_indices.index(x2_min)]
-    y1_max = local_max[local_max_indices.index(x1_max)]
-    y2_max = local_max[local_max_indices.index(x2_max)]
-    df = pd.DataFrame({
-        'x': [x1_min, x2_min, x1_max, x2_max],
-        'y': [y1_min, y2_min, y1_max, y2_max],
-        'type': ['min', 'min', 'max', 'max']
-    })
-    fig = px.line(df, x='x', y='y', color='type')
-    fig.show()
+# for i in range(len(matching_slopes)):
+#     idx_min = matching_indices_min[i]
+#     idx_max = matching_indices_max[i]
+    # print(f"Matching slope: {matching_slopes[i]}")
+print(f"Local_min: {local_min[matching_indices_min]}")
+print(f"Local_min_indices: {matching_indices_min}")
+print(f"Local_max: {local_max[matching_indices_max]}")
+print(f"Local_max_indices: {matching_indices_max}")
+
+
 
 
 
