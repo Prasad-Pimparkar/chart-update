@@ -1,3 +1,5 @@
+
+
 import numpy as np
 from scipy.signal import argrelextrema, find_peaks
 from scipy.stats import linregress
@@ -9,8 +11,8 @@ pio.renderers.default="browser"
 from collections import defaultdict
 
 # Stock data
-quote=yf.Ticker('TCS.NS')
-df=quote.history(start=('2021-12-01'), end=('2023-02-21'), interval='1h')
+quote=yf.Ticker('^NSEI')
+df=quote.history(start=('2021-12-01'), end=('2023-02-21'), interval='1d')
 # df=quote.history(period='max', interval='1d')
 df.to_csv('trial_data.csv')
 df=pd.read_csv('trial_data.csv')
@@ -66,46 +68,104 @@ local_min_dates=df['Date'][local_min_indices]
 
 
 slopes_min = []
-slope_index_min=[]
+slope_to_index_jmin={}
+slope_to_index_imin={}
 for i in range(len(local_min)):
     for j in range(i+1,len(local_min)):
-        slope=(local_min[j]-local_min[i])/(local_min_indices[j]-local_min_indices[i])
-        slopes_min.append(slope)
-        slope_index_min.append(local_min_indices[j])
+        min_slope=(local_min[j]-local_min[i])/(local_min_indices[j]-local_min_indices[i])
+        jmin_index=local_min_indices[j]
+        imin_index=local_min_indices[i]
+        if min_slope not in slope_to_index_jmin and min_slope not in slope_to_index_imin:
+            slope_to_index_imin[min_slope]=[imin_index]
+            slope_to_index_jmin[min_slope]=[jmin_index]
+        else:
+            slope_to_index_imin[min_slope].append(imin_index)
+            slope_to_index_jmin[min_slope].append(jmin_index)
+        slopes_min.append(min_slope)
+                
 
 # print(f"min slopes are : {slopes_min}")
 
 slopes_max = []
-slope_index_max=[]
+slope_to_index_jmax={}
+slope_to_index_imax={}
 for i in range(len(local_max)):
     for j in range(i+1,len(local_max)):
-        slope=(local_max[j]-local_max[i])/(local_max_indices[j]-local_max_indices[i])
-        slopes_max.append(slope)
-        slope_index_max.append(local_max_indices[j])
+        max_slope=(local_max[j]-local_max[i])/(local_max_indices[j]-local_max_indices[i])
+        jmax_index=local_max_indices[j]
+        imax_index=local_max_indices[i]
+        if max_slope not in slope_to_index_jmax and max_slope not in slope_to_index_imax:
+            slope_to_index_imax[max_slope]=[imax_index]
+            slope_to_index_jmax[max_slope]=[jmax_index]
+        else:
+            slope_to_index_imax[max_slope].append(imax_index)
+            slope_to_index_jmax[max_slope].append(jmax_index)
+        slopes_max.append(max_slope)
+        
 # print(f"max slopes are : {slopes_max}")
+print(slope_to_index_imax, '\n')
+print(slope_to_index_jmax, '\n')
+print(local_max_indices, '\n')
+print(len(local_max_indices), '\n')
 
-# matching_slopes = []
-matching_indices_min = []
-matching_indices_max = []
+
+matching_max_slopes = []
+matching_min_slopes = []
 
 for i, slope_min in enumerate(slopes_min):
     for j, slope_max in enumerate(slopes_max):
-        if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.000000001):
-            # matching_slopes.append(slope_max)
-            matching_indices_min.append(slope_index_min[i])
-            matching_indices_max.append(slope_index_max[j])
-            break
+        if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.01):
+            matching_max_slopes.append(slope_max)
+            matching_min_slopes.append(slope_min)
+
+print(matching_max_slopes, '\n')
+print(matching_min_slopes, '\n')
+
+upper_trendline = []
+lower_trendline = []
+upper_dates=[]
+lower_dates=[]
+
+for slope in matching_max_slopes:
+    if slope in slope_to_index_imax:
+        index = slope_to_index_imax[slope]
+        upper_trendline.extend(high_data[index])
+        upper_dates.extend(df['Date'][index])
+        
+
+for slope in matching_max_slopes:
+    if slope in slope_to_index_jmax:
+        index = slope_to_index_jmax[slope]
+        upper_trendline.extend(high_data[index])
+        upper_dates.extend(df['Date'][index])
+
+for slope in matching_min_slopes:
+    if slope in slope_to_index_imin:
+        index = slope_to_index_imin[slope]
+        lower_trendline.extend(low_data[index])
+        lower_dates.extend(df['Date'][index])
+
+for slope in matching_min_slopes:
+    if slope in slope_to_index_jmin:
+        index = slope_to_index_jmin[slope]
+        lower_trendline.extend(low_data[index])
+        lower_dates.extend(df['Date'][index])
+        
+print(upper_trendline, '\n')
+print(lower_trendline, '\n')
+print(upper_dates, '\n')
+print(lower_dates, '\n')
 
 # for i in range(len(matching_slopes)):
 #     idx_min = matching_indices_min[i]
 #     idx_max = matching_indices_max[i]
     # print(f"Matching slope: {matching_slopes[i]}")
-print(f"Local_min: {local_min[matching_indices_min]}")
-print(f"Local_min_indices: {matching_indices_min}")
-print(f"Local_max: {local_max[matching_indices_max]}")
-print(f"Local_max_indices: {matching_indices_max}")
-
-
+# print(f"Local_min: {local_min[matching_indices_min]}")
+# print(f"Local_min_indices: {matching_indices_min}")
+# print(f"Local_max: {local_max[matching_indices_max]}")
+# print(f"Local_max_indices: {matching_indices_max}")
+# print(f"min slopes are: {slopes_min}\n")
+# print(f"max slopes are: {slopes_max}")
 
 
 
@@ -139,24 +199,24 @@ fig.add_trace(
     )
 
 
-# fig.add_trace(
-#     go.Scatter(
-#         x=local_max_dates[upper_channel],
-#         y=high_data[upper_channel],
-#         mode=('lines'),
-#         name=('u+pper trend line')
-#         )
-#     )
+fig.add_trace(
+    go.Scatter(
+        x=upper_dates,
+        y=upper_trendline,
+        mode=('lines'),
+        name=('upper trend line')
+        )
+    )
 
 
-# fig.add_trace(
-#     go.Scatter(
-#         x=local_min_dates[lower_channel],
-#         y=low_data[lower_channel],
-#         mode=('lines'),
-#         name=('lower trend line')
-#         )
-#     )
+fig.add_trace(
+    go.Scatter(
+        x=lower_dates,
+        y=lower_trendline,
+        mode=('lines'),
+        name=('lower trend line')
+        )
+    )
 
 
 fig.show()
