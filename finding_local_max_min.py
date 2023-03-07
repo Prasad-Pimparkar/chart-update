@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default="browser"
 from collections import defaultdict
+import datetime
 
 # Stock data
 quote=yf.Ticker('^NSEI')
@@ -27,6 +28,7 @@ low_data = np.array(low_data)
 peaks,_=find_peaks(high_data)
 local_max_indices=peaks
 drop_indices=[]
+print(df.Date)
 
 for i in range(1, len(local_max_indices)):
     if high_data[local_max_indices[i]] < high_data[local_max_indices[i-1]]:
@@ -110,7 +112,7 @@ print(len(local_max_indices), '\n')
 matching_max_slopes = []
 matching_min_slopes = []
 
-for i, slope_min in enumerate(slopes_min):
+for i, slope_min in enumerate(slopes_min):      
     for j, slope_max in enumerate(slopes_max):
         if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.001):
             matching_max_slopes.append(slope_max)
@@ -128,26 +130,26 @@ for slope in matching_max_slopes:
     if slope in slope_to_index_imax:
         index = slope_to_index_imax[slope]
         upper_trendline.extend(high_data[index])
-        upper_dates.extend(df['Date'][index])
+        upper_dates.extend(datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S%z') for date in df.Date[index])
         
 
 for slope in matching_max_slopes:
     if slope in slope_to_index_jmax:
         index = slope_to_index_jmax[slope]
         upper_trendline.extend(high_data[index])
-        upper_dates.extend(df['Date'][index])
+        upper_dates.extend(datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S%z') for date in df.Date[index])
 
 for slope in matching_min_slopes:
     if slope in slope_to_index_imin:
         index = slope_to_index_imin[slope]
         lower_trendline.extend(low_data[index])
-        lower_dates.extend(df['Date'][index])
+        lower_dates.extend(datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S%z') for date in df.Date[index])
 
 for slope in matching_min_slopes:
     if slope in slope_to_index_jmin:
         index = slope_to_index_jmin[slope]
         lower_trendline.extend(low_data[index])
-        lower_dates.extend(df['Date'][index])
+        lower_dates.extend(datetime.datetime.strftime(date, '%Y-%m-%d %H:%M:%S%z') for date in df.Date[index])
         
 print(upper_trendline, '\n')
 print(lower_trendline, '\n')
