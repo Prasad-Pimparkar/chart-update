@@ -1,5 +1,3 @@
-
-
 import numpy as np
 from scipy.signal import argrelextrema, find_peaks
 from scipy.stats import linregress
@@ -114,7 +112,7 @@ matching_min_slopes = []
 
 for i, slope_min in enumerate(slopes_min):
     for j, slope_max in enumerate(slopes_max):
-        if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.01):
+        if np.isclose(slope_min, slope_max, rtol=0.0, atol=0.001):
             matching_max_slopes.append(slope_max)
             matching_min_slopes.append(slope_min)
 
@@ -155,6 +153,18 @@ print(upper_trendline, '\n')
 print(lower_trendline, '\n')
 print(upper_dates, '\n')
 print(lower_dates, '\n')
+
+upper_trendline_pair=[(upper_trendline[i], upper_trendline[i+1]) for i in range(0, len(upper_trendline), 2)]
+lower_trendline_pair=[(lower_trendline[i], lower_trendline[i+1]) for i in range(0, len(lower_trendline), 2)]
+upper_dates_pair=[(upper_dates[i], upper_dates[i+1]) for i in range(0, len(upper_dates), 2)]
+lower_dates_pair=[(lower_dates[i], lower_dates[i+1]) for i in range(0, len(lower_dates), 2)]
+
+# print(upper_trendline_pair, '\n')
+
+upper_pair=list(zip(upper_trendline, upper_dates))
+lower_pair=list(zip(lower_trendline, lower_dates))
+
+print(upper_pair)
 
 # for i in range(len(matching_slopes)):
 #     idx_min = matching_indices_min[i]
@@ -198,25 +208,26 @@ fig.add_trace(
         )
     )
 
-
-fig.add_trace(
-    go.Scatter(
-        x=upper_dates,
-        y=upper_trendline,
-        mode=('lines'),
-        name=('upper trend line')
+for i in range(0, len(upper_pair), 2):
+    fig.add_trace(
+        go.Scatter(
+            x=upper_pair[i:i+2][0],
+            y=upper_pair[i:i+2][1],
+            mode=('lines'),
+            name=('upper trend line')
+            )
         )
-    )
 
 
-fig.add_trace(
-    go.Scatter(
-        x=lower_dates,
-        y=lower_trendline,
-        mode=('lines'),
-        name=('lower trend line')
+for i in range(0, len(lower_pair), 2):
+    fig.add_trace(
+        go.Scatter(
+            x=lower_pair[i:i+2][0],
+            y=lower_pair[i:i+2][1],
+            mode=('lines'),
+            name=('lower trend line')
+            )
         )
-    )
 
 
 fig.show()
